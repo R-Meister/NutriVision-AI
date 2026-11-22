@@ -146,7 +146,7 @@ source .venv/bin/activate        # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### 2. Download real training data (one time, ~300 MB)
+### 2. Download real training data (one time, ~600 MB)
 The image classifiers are trained on real photographs assembled from public
 datasets (Food-101, Indian Foods, Indian Food Images, Fruits-360):
 ```bash
