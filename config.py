@@ -1,9 +1,19 @@
 # config.py — Central configuration for Food Calorie Estimator
 import os
+import sys
+
+# Windows consoles can default to cp1252; make Unicode log output safe.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        if _stream is not None:
+            _stream.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
 
 # ── Paths ────────────────────────────────────────────────────────────────────
 BASE_DIR        = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR        = os.path.join(BASE_DIR, "data")
+REAL_DATA_DIR   = os.path.join(DATA_DIR, "food_images")
 SAVED_MODELS    = os.path.join(BASE_DIR, "saved_models")
 RESULTS_DIR     = os.path.join(BASE_DIR, "results")
 ASSETS_DIR      = os.path.join(BASE_DIR, "assets")
@@ -11,6 +21,7 @@ ASSETS_DIR      = os.path.join(BASE_DIR, "assets")
 CNN_MODEL_PATH  = os.path.join(SAVED_MODELS, "cnn_model.keras")
 TL_MODEL_PATH   = os.path.join(SAVED_MODELS, "mobilenet_model.keras")
 ANN_MODEL_PATH  = os.path.join(SAVED_MODELS, "ann_model.keras")
+OOD_CALIBRATION_PATH = os.path.join(SAVED_MODELS, "ood_calibration.npz")
 NUTRITION_CSV   = os.path.join(DATA_DIR, "nutrition.csv")
 DB_PATH         = os.path.join(BASE_DIR, "food_tracker.db")
 

@@ -97,18 +97,21 @@ def plot_confusion_matrix(cm: np.ndarray, classes: list, name: str):
     return path
 
 
-def evaluate_classifier(model_path: str, name: str, dataset_mode: str = "synthetic",
-                         n_per_class: int = 20):
+def evaluate_classifier(model_path: str, name: str, dataset_mode: str = "real",
+                         n_per_class: int | None = None):
     """Evaluate a classification model (CNN or MobileNetV2)."""
     import tensorflow as tf
-    from training.dataset_loader import load_dataset
+    from training.dataset_loader import load_dataset, load_test_dataset
 
     if not os.path.exists(model_path):
         print(f"❌ Model not found: {model_path}")
         return {}
 
     model = tf.keras.models.load_model(model_path)
-    _, _, _, _, X_test, y_test = load_dataset(dataset_mode, n_per_class)
+    if dataset_mode == "real":
+        X_test, y_test = load_test_dataset(n_per_class)
+    else:
+        _, _, _, _, X_test, y_test = load_dataset(dataset_mode, n_per_class)
 
     if len(X_test) == 0:
         print("❌ Empty test set.")
@@ -121,10 +124,16 @@ def evaluate_classifier(model_path: str, name: str, dataset_mode: str = "synthet
 
     labels = list(range(len(config.FOOD_CLASSES)))
     acc    = accuracy_score(y_true, y_pred)
+    top3   = np.argsort(preds, axis=1)[:, -3:]
+    top3_acc = float(np.any(top3 == y_true[:, None], axis=1).mean())
     p, r, f1, _ = precision_recall_fscore_support(y_true, y_pred,
                                                    labels=labels,
-                                                   average="weighted",
+                                                   average="macro",
                                                    zero_division=0)
+    wp, wr, wf1, _ = precision_recall_fscore_support(y_true, y_pred,
+                                                      labels=labels,
+                                                      average="weighted",
+                                                      zero_division=0)
     cm     = confusion_matrix(y_true, y_pred, labels=labels)
     report = classification_report(y_true, y_pred,
                                    labels=labels,
@@ -132,14 +141,21 @@ def evaluate_classifier(model_path: str, name: str, dataset_mode: str = "synthet
                                    zero_division=0)
 
     print(f"\n{name.upper()} Test Results")
-    print(f"  Accuracy  : {acc:.4f}")
-    print(f"  Precision : {p:.4f}")
-    print(f"  Recall    : {r:.4f}")
-    print(f"  F1-Score  : {f1:.4f}")
+    print(f"  Accuracy        : {acc:.4f}")
+    print(f"  Top-3 Accuracy  : {top3_acc:.4f}")
+    print(f"  Precision (macro): {p:.4f}")
+    print(f"  Recall    (macro): {r:.4f}")
+    print(f"  F1-score  (macro): {f1:.4f}")
     print(f"\n{report}")
 
     # Save metrics
-    metrics = {"accuracy": acc, "precision": p, "recall": r, "f1": f1}
+    metrics = {
+        "accuracy": acc,
+        "top3_accuracy": top3_acc,
+        "precision": p, "recall": r, "f1": f1,
+        "precision_weighted": wp, "recall_weighted": wr, "f1_weighted": wf1,
+        "test_samples": int(len(y_true)),
+    }
     mpath = os.path.join(config.RESULTS_DIR, f"{name}_metrics.json")
     with open(mpath, "w") as mf:
         json.dump({k: float(v) for k, v in metrics.items()}, mf, indent=2)
@@ -199,17 +215,23 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", default="mobilenet",
                         choices=["cnn", "mobilenet", "ann", "all"])
-    parser.add_argument("--dataset", default="synthetic",
-                        choices=["auto", "food101", "synthetic"])
-    parser.add_argument("--n_per_class", type=int, default=20)
+    parser.add_argument("--dataset", default="real",
+                        choices=["real", "synthetic", "food101"])
+    parser.add_argument("--n_per_class", type=int, default=0,
+                        help="Cap test images per class (0 = all)")
     args = parser.parse_args()
+
+    n_per_class = args.n_per_class or None
+    if args.dataset == "synthetic":
+        print("⚠️  WARNING: synthetic images are random noise; metrics are "
+              "meaningless. Use --dataset real for reported results.")
 
     if args.model in ("mobilenet", "all"):
         evaluate_classifier(config.TL_MODEL_PATH, "mobilenet",
-                            args.dataset, args.n_per_class)
+                            args.dataset, n_per_class)
     if args.model in ("cnn", "all"):
         evaluate_classifier(config.CNN_MODEL_PATH, "cnn",
-                            args.dataset, args.n_per_class)
+                            args.dataset, n_per_class)
     if args.model in ("ann", "all"):
         evaluate_ann(args.dataset)
 

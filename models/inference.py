@@ -25,6 +25,8 @@ from utils.preprocessing import decode_predictions
 
 # ── Global Model Cache ────────────────────────────────────────────────────────
 _MODEL_CACHE = {}
+_FEATURE_MODEL_CACHE = {}
+_OOD_CACHE = {"loaded": False, "features": None, "threshold": None}
 
 def _load_model(path: str, model_type: str):
     """Load model from disk once and cache in memory."""
@@ -54,6 +56,71 @@ def get_ann_model():
     return _load_model(config.ANN_MODEL_PATH, "ANN")
 
 
+# ── Out-of-distribution / "is this one of our foods?" check ──────────────────
+#
+# A 12-class softmax always returns one of the 12 labels, even for a face or a
+# landscape.  To avoid showing fake calories, compare the image's MobileNetV2
+# GAP feature with the training features.  If the closest training photo is
+# still far away (cosine similarity below the calibrated threshold), the image
+# is reported as "not one of the supported foods".
+
+def _load_ood_calibration() -> dict:
+    if _OOD_CACHE["loaded"]:
+        return _OOD_CACHE
+    _OOD_CACHE["loaded"] = True
+
+    path = config.OOD_CALIBRATION_PATH
+    if not os.path.exists(path):
+        print("[inference] OOD calibration not found; non-food gate disabled.")
+        return _OOD_CACHE
+    try:
+        data = np.load(path)
+        features = data["features"].astype(np.float32)
+        norms = np.linalg.norm(features, axis=1, keepdims=True)
+        norms[norms == 0] = 1.0
+        _OOD_CACHE["features"] = features / norms
+        _OOD_CACHE["threshold"] = float(data["threshold"])
+        print(
+            f"[inference] OOD gate loaded: {len(features)} reference features, "
+            f"threshold={_OOD_CACHE['threshold']:.2f}"
+        )
+    except Exception as exc:
+        print(f"[inference] Could not load OOD calibration: {exc}")
+    return _OOD_CACHE
+
+
+def _get_feature_model(model):
+    key = id(model)
+    if key in _FEATURE_MODEL_CACHE:
+        return _FEATURE_MODEL_CACHE[key]
+    try:
+        feature_model = tf.keras.Model(
+            model.input, model.get_layer("gap").output, name="gap_features"
+        )
+        _FEATURE_MODEL_CACHE[key] = feature_model
+        return feature_model
+    except Exception:
+        return None
+
+
+def _food_match_score(model, batch: np.ndarray):
+    """Return (mean top-5 cosine similarity to training food features, threshold)."""
+    cal = _load_ood_calibration()
+    if cal["features"] is None:
+        return None, None
+    feature_model = _get_feature_model(model)
+    if feature_model is None:
+        return None, None
+    feat = feature_model.predict(batch, verbose=0)[0].astype(np.float32)
+    norm = float(np.linalg.norm(feat))
+    if norm == 0:
+        return 0.0, cal["threshold"]
+    sims = cal["features"] @ (feat / norm)
+    k = min(5, len(sims))
+    score = float(np.sort(sims)[-k:].mean())
+    return score, cal["threshold"]
+
+
 # ── Single Item Prediction ────────────────────────────────────────────────────
 
 def predict_single_food(image_crop: np.ndarray,
@@ -70,9 +137,19 @@ def predict_single_food(image_crop: np.ndarray,
     if prefer_model == "mobilenet":
         model = get_mobilenet_model()
         model_name = "MobileNetV2 (Transfer Learning)"
-    if model is None:
+    else:
         model = get_cnn_model()
         model_name = "Custom CNN"
+
+    # If the requested checkpoint is missing, fall back to the other model
+    # instead of silently switching to the colour heuristic.
+    if model is None:
+        if prefer_model == "mobilenet":
+            model = get_cnn_model()
+            model_name = "Custom CNN (fallback)"
+        else:
+            model = get_mobilenet_model()
+            model_name = "MobileNetV2 (fallback)"
 
     # Preprocess image crop to (1, 224, 224, 3)
     img = image_crop
@@ -95,12 +172,16 @@ def predict_single_food(image_crop: np.ndarray,
         probs = _heuristic_color_distribution(img)
         model_name = "Heuristic Fallback"
 
+    # Is this one of the 12 supported foods, or an unrelated photo?
+    match_score, ood_threshold = _food_match_score(model, batch) if model is not None else (None, None)
+    supported_food = (match_score is None) or (match_score >= ood_threshold)
+
     # Top-K predictions
     top_preds = decode_predictions(probs, top_k=top_k)
     top1 = top_preds[0]
     food_name = top1["label"]
     confidence = float(top1["confidence"])
-    uncertain = confidence < config.CONFIDENCE_THRESHOLD
+    uncertain = (confidence < config.CONFIDENCE_THRESHOLD) or (not supported_food)
 
     # Portion estimation
     if portion_override is not None:
@@ -120,6 +201,9 @@ def predict_single_food(image_crop: np.ndarray,
         "confidence": confidence,
         "confidence_pct": round(confidence * 100, 1),
         "uncertain": uncertain,
+        "supported_food": bool(supported_food),
+        "match_score": None if match_score is None else round(float(match_score), 3),
+        "ood_threshold": None if ood_threshold is None else round(float(ood_threshold), 3),
         "portion_grams": portion_g,
         "portion_method": portion_method,
         "nutrition": nutr,
@@ -161,26 +245,36 @@ def analyze_meal(image_array: np.ndarray,
         pred["box"] = reg["box"]
         pred["region_id"] = reg["region_id"]
         analyzed_items.append(pred)
-        labels.append(f"{pred['display_name']} ({pred['confidence_pct']}%)")
+        if pred.get("supported_food", True):
+            labels.append(f"{pred['display_name']} ({pred['confidence_pct']}%)")
+        else:
+            labels.append(f"Not recognized ({pred['confidence_pct']}%)")
 
     # Annotate image
     annotated_img = draw_bounding_boxes(image_array, regions, labels)
 
-    # Aggregate total meal nutrition
-    total_cal  = round(sum(it["nutrition"]["calories"]  for it in analyzed_items), 1)
-    total_prot = round(sum(it["nutrition"]["protein"]   for it in analyzed_items), 1)
-    total_carb = round(sum(it["nutrition"]["carbs"]     for it in analyzed_items), 1)
-    total_fat  = round(sum(it["nutrition"]["fat"]       for it in analyzed_items), 1)
-    total_fib  = round(sum(it["nutrition"]["fiber"]     for it in analyzed_items), 1)
-    total_sug  = round(sum(it["nutrition"]["sugar"]     for it in analyzed_items), 1)
-    total_sod  = round(sum(it["nutrition"]["sodium_mg"] for it in analyzed_items), 1)
-    total_wt   = round(sum(it["portion_grams"]          for it in analyzed_items), 1)
+    supported_items = [it for it in analyzed_items if it.get("supported_food", True)]
+    rejected_items = [it for it in analyzed_items if not it.get("supported_food", True)]
 
-    # Primary item is the one with highest weight or first
-    primary = analyzed_items[0]
+    # Aggregate only accepted food items; never invent calories for non-food.
+    total_cal  = round(sum(it["nutrition"]["calories"]  for it in supported_items), 1)
+    total_prot = round(sum(it["nutrition"]["protein"]   for it in supported_items), 1)
+    total_carb = round(sum(it["nutrition"]["carbs"]     for it in supported_items), 1)
+    total_fat  = round(sum(it["nutrition"]["fat"]       for it in supported_items), 1)
+    total_fib  = round(sum(it["nutrition"]["fiber"]     for it in supported_items), 1)
+    total_sug  = round(sum(it["nutrition"]["sugar"]     for it in supported_items), 1)
+    total_sod  = round(sum(it["nutrition"]["sodium_mg"] for it in supported_items), 1)
+    total_wt   = round(sum(it["portion_grams"]          for it in supported_items), 1)
+
+    primary = supported_items[0] if supported_items else (
+        analyzed_items[0] if analyzed_items else None
+    )
 
     return {
         "is_multi_food": len(analyzed_items) > 1,
+        "is_supported_meal": bool(supported_items),
+        "supported_items": supported_items,
+        "rejected_items": rejected_items,
         "items": analyzed_items,
         "primary_item": primary,
         "annotated_image": annotated_img,

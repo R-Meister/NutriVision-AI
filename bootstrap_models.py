@@ -1,15 +1,20 @@
 """
 bootstrap_models.py
-Quick-train all models using synthetic data so the app works immediately.
-Run this BEFORE launching app.py.
+One-time setup helper.
+
+Trains the nutritional ANN (fast, deterministic) and — only when the real
+image dataset exists — trains the image classifiers on real photographs.
+
+⚠️  Earlier versions of this script trained the image models on random noise,
+which is why the checked-in models had chance-level accuracy.  That fallback
+has been removed on purpose: a model trained on noise must never overwrite a
+real checkpoint.
 
 Usage:
     python bootstrap_models.py
 
-Time estimate on CPU:
-    ANN  training: ~30 seconds
-    CNN  training: ~3-5 minutes
-    MobileNetV2:   ~5-10 minutes
+Prepare real image data first:
+    python training/download_dataset.py
 """
 import os, sys, time
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
@@ -20,35 +25,38 @@ sys.path.insert(0, APP_DIR)
 import config
 
 print("=" * 70)
-print("  FoodAI — Bootstrap Model Training")
+print("  NutriVision AI — Model Bootstrap")
 print("=" * 70)
 print(f"Models will be saved to: {config.SAVED_MODELS}")
 print()
 
-# ── 1. Train ANN (fast, always works) ────────────────────────────────────────
-print("STEP 1/3 — Training Nutritional ANN…")
+# ── 1. Train ANN (tabular nutrition regression) ───────────────────────────────
+print("STEP 1/2 — Training Nutritional ANN…")
 t0 = time.time()
 from training.train_ann import train_ann
 train_ann(epochs=80, batch_size=32)
 print(f"  ✅ ANN done in {time.time()-t0:.0f}s\n")
 
-# ── 2. Train Custom CNN ───────────────────────────────────────────────────────
-print("STEP 2/3 — Training Custom CNN (synthetic data, quick epochs)…")
-t0 = time.time()
-from training.dataset_loader import load_dataset
-from training.train_cnn import train_cnn_model
-Xtr, ytr, Xv, yv, _, _ = load_dataset("synthetic", n_per_class=30)
-train_cnn_model(Xtr, ytr, Xv, yv, epochs=10, batch_size=16)
-print(f"  ✅ CNN done in {time.time()-t0:.0f}s\n")
+# ── 2. Train image models only on REAL data ──────────────────────────────────
+from training.dataset_loader import has_real_dataset
 
-# ── 3. Train MobileNetV2 ──────────────────────────────────────────────────────
-print("STEP 3/3 — Training MobileNetV2 (feature extraction on synthetic data)…")
-t0 = time.time()
-from training.train_cnn import train_mobilenet_model
-train_mobilenet_model(Xtr, ytr, Xv, yv, epochs=10, fine_tune=False, batch_size=16)
-print(f"  ✅ MobileNetV2 done in {time.time()-t0:.0f}s\n")
+if not has_real_dataset():
+    print("STEP 2/2 — Image classifiers skipped.")
+    print("  ❌ No real dataset found at data/food_images.")
+    print("  Run the command below, then re-run this script:")
+    print("     python training/download_dataset.py")
+    print("\n  (Refusing to train on synthetic noise — it produces a")
+    print("   classifier that is only right by coincidence.)")
+    sys.exit(0)
+
+print("STEP 2/2 — Training the image classifier on REAL photographs…")
+from training.train_mobilenet_linear import train_linear_model
+
+train_linear_model()
 
 print("=" * 70)
-print("  🎉 All models trained and saved!")
+print("  🎉 Models trained and saved!")
+print("  The custom from-scratch CNN is optional (CPU training is slow):")
+print("     python training/train_cnn.py --model cnn --dataset real --epochs 5")
 print("  Launch the app with:  streamlit run app.py")
 print("=" * 70)

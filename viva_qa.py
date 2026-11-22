@@ -86,18 +86,38 @@ Same formula for protein, carbs, fat:
   Nutrient_g = (portion_g / 100) × nutrient_per_100g"""
     },
     {
+        "q": "What happens if I upload a photo that is not food?",
+        "a": """A 12-class softmax always returns one of its 12 labels, even for a face
+or a landscape. To prevent fake calories, the app adds an out-of-distribution
+(OOD) gate:
+
+  • Extract the 1280-D MobileNetV2 GAP feature for the uploaded image.
+  • Compare it with the 2,353 training-image feature bank.
+  • Compute the mean cosine similarity of the top-5 nearest training photos.
+  • If the score is below 0.57, report "not one of the 12 supported foods"
+    and show no calorie estimate.
+
+Calibration results: 50/50 sampled non-food images (faces, landscapes,
+objects) were rejected, while 98.8% of held-out food photos were accepted."""
+    },
+    {
         "q": "What dataset did you use?",
-        "a": """Primary: Food-101 (via TensorFlow Datasets)
-  - 101 food categories, 1,000 images each
-  - Total: 101,000 images
-  - Used subset of 12 classes matching our categories
+        "a": """Real photographs assembled from four public datasets:
+  • Food-101 (7 classes): pizza, burger, french fries, samosa,
+    fried rice, club sandwich, omelette
+  • Indian Foods Dataset: biryani, dosa
+  • Indian Food Images: idli
+  • Fruits-360: apple, banana
 
-Fallback: Synthetic dataset
-  - Random noise images (always works without internet)
-  - Verifies training pipeline integrity
+Per class: 200 train / 40 validation / 47 held-out test images
+(2,400 train, 480 validation, 564 test in total).
 
-Split: 70% Train / 15% Validation / 15% Test
-Random seed: 42 (fully reproducible)"""
+The official dataset splits are respected:
+  • Food-101 validation split → our test set
+  • Indian Foods / Indian Food Images / Fruits-360 test splits → our test set
+
+The synthetic random-noise loader still exists, but it is ONLY for checking
+that the training code runs. It is never used for reported accuracy."""
     },
     {
         "q": "How do you prevent overfitting?",
@@ -118,11 +138,12 @@ Key features:
   • Inverted Residuals: Bottleneck blocks with linear activations
   • 3.4M parameters (vs VGG16's 138M)
   • Pre-trained on ImageNet (1.28M images, 1000 classes)
-  
+
 Why suitable:
   • Fast inference (CPU-compatible)
   • Food visual features transfer well from ImageNet
-  • Achieves high accuracy on Food-101 benchmarks"""
+  • Frozen ImageNet features + a linear probe reached 91.1% top-1 and
+    98.6% top-3 on our 562-image held-out real-photo test set"""
     },
 ]
 
