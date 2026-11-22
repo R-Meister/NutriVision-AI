@@ -18,7 +18,19 @@ _CSS = """
 .block-container {
   padding-top: 1.25rem;
   padding-bottom: 3rem;
-  max-width: 1120px;
+  padding-left: clamp(1rem, 2.5vw, 2.5rem);
+  padding-right: clamp(1rem, 2.5vw, 2.5rem);
+  max-width: 100% !important;
+  width: 100% !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+[data-testid="stMain"] {
+  margin-left: 0 !important;
+}
+[data-testid="stSidebar"],
+[data-testid="stSidebarCollapsedControl"] {
+  display: none !important;
 }
 h1 {
   font-weight: 650;
