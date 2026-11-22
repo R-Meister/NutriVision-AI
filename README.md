@@ -1,7 +1,7 @@
 # 🥗 NutriVision AI — Food Image Analyzer & Calorie Counter
 
 > **Advanced AI-Powered Nutrition & Calorie Estimation Platform**  
-> Inspired by WebMD HealthTools · Deep Learning (MobileNetV2, CNN, ANN) · OpenCV Multi-Food Segmentation · 504+ Verified Nutrition Database · Streamlit Web Application
+> Real-data trained MobileNetV2 · OpenCV multi-food segmentation · 504+ verified nutrition entries · Streamlit web app
 
 ---
 
@@ -11,7 +11,7 @@
 3. [Deep Learning Architecture](#-deep-learning-architecture)
 4. [Smart Nutrition Database (504+ Foods)](#-smart-nutrition-database-504-foods)
 5. [OpenCV Multi-Food Region Segmentation](#-opencv-multi-food-region-segmentation)
-6. [WebMD-Inspired Calorie & Diet Calculator](#-webmd-inspired-calorie--diet-calculator)
+6. [Daily Calorie & Diet Calculator](#-daily-calorie--diet-calculator)
 7. [Running the Application](#-running-the-application)
 8. [Model Evaluation & Real Metrics](#-model-evaluation--real-metrics)
 9. [Viva Examination Q&A](#-viva-examination-qa)
@@ -22,7 +22,7 @@
 
 NutriVision AI revolves around the primary real-world clinical nutrition workflow:
 
-$$\text{User Upload / Camera} \longrightarrow \text{OpenCV Segmentation} \longrightarrow \text{Deep Learning Classification} \longrightarrow \text{Portion Estimation} \longrightarrow \text{Nutrition Calculation} \longrightarrow \text{WebMD Daily Diary}$$
+$$\text{User Upload / Camera} \longrightarrow \text{OpenCV Segmentation} \longrightarrow \text{Deep Learning Classification} \longrightarrow \text{Portion Estimation} \longrightarrow \text{Nutrition Calculation} \longrightarrow \text{Daily Food Diary}$$
 
 ```
 📸 User Uploads / Snaps Food Image
@@ -49,12 +49,12 @@ $$\text{User Upload / Camera} \longrightarrow \text{OpenCV Segmentation} \longri
 
 ## 🚀 Key Features & Improvements
 
-- **Modern WebMD-Inspired UI/UX**: Crisp emerald green, mint, white, and slate theme with modern typography, metric cards, donut charts, and progress bars.
+- **Minimal native Streamlit UI**: Calm typography, native metrics, progress bars, and expanders — no dashboard clutter.
 - **504+ Verified Food Database**: Sourced from USDA FoodData Central and Indian Food Composition Tables (IFCT) covering Indian main dishes, South Indian specialties, street food, Western meals, fruits, vegetables, beverages, and desserts.
 - **Multi-Food Region Detection**: OpenCV-based plate contour analysis that isolates distinct items (e.g. Dosa + Sambar + Chutney or Burger + Fries), estimating individual portions and calculating grand meal totals.
 - **Non-Food Rejection Gate**: The classifier compares each photo against the training feature bank (mean top-5 cosine similarity ≥ 0.57). Faces, landscapes and objects are flagged as “not one of the 12 supported foods” instead of receiving invented calories.
 - **Micro & Macro Nutritional Tracking**: Tracks Calories, Protein, Carbohydrates, Fat, Dietary Fiber, Sugars, and Sodium per item and per meal.
-- **Daily Budget & RDA Gauges**: WebMD-style budget tracker (`Daily Goal - Food Intake = Remaining Calories`) with progress bars against daily RDA targets.
+- **Daily Budget & RDA Gauges**: Daily budget tracker (`Daily Goal - Food Intake = Remaining Calories`) with progress bars against RDA targets.
 - **Persistent SQLite Food Diary**: Stores logged meals with timestamps, meal types, itemized breakdowns, and deletion capabilities.
 
 ---

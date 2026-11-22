@@ -31,5 +31,4 @@ if not ann_exists:
 print("\n🚀 Launching Streamlit app...")
 print("   URL: http://localhost:8501\n")
 subprocess.run([sys.executable, "-m", "streamlit", "run", "app.py",
-                "--server.headless", "false",
-                "--theme.base", "dark"])
+                "--server.headless", "false"])
