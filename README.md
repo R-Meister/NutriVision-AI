@@ -60,10 +60,14 @@ $$\text{User Upload / Camera} \longrightarrow \text{OpenCV Segmentation} \longri
 
 ## 🧠 Deep Learning Architecture
 
-### 1. MobileNetV2 Transfer Learning (`models/transfer_learning.py`)
-- **Backbone**: Pre-trained on 1.28 million ImageNet samples with inverted residual blocks and depthwise separable convolutions (3.4M parameters).
-- **Custom Classification Head**:
-  $$\text{Input}(224, 224, 3) \rightarrow \text{MobileNetV2} \rightarrow \text{GAP} \rightarrow \text{Dense}(256, \text{ReLU}) \rightarrow \text{BN} \rightarrow \text{Dropout}(0.5) \rightarrow \text{Dense}(128, \text{ReLU}) \rightarrow \text{Dense}(12, \text{Softmax})$$
+### 1. MobileNetV2 Transfer Learning (`training/train_mobilenet_linear.py`)
+- **Backbone**: MobileNetV2 pre-trained on 1.28M ImageNet images (frozen).
+- **Production classifier** (best result on this dataset size):
+  $$\text{Input}(224,224,3) \rightarrow \text{MobileNetV2} \rightarrow \text{GAP}(1280) \rightarrow \text{StandardScaler} \rightarrow \text{LogisticRegression}(12) \rightarrow \text{Softmax}$$
+  The scaler and logistic-regression weights are folded into a Keras `Dense`
+  layer, so the deployed artefact is one self-contained `.keras` model.
+- An optional fine-tuned-head variant is available in
+  `models/transfer_learning.py`, but it scored lower on the small real dataset.
 
 ### 2. Custom 4-Block Convolutional Neural Network (`models/cnn_model.py`)
 - **Architecture**:
@@ -71,6 +75,9 @@ $$\text{User Upload / Camera} \longrightarrow \text{OpenCV Segmentation} \longri
   - 4 Sequential Conv blocks: `Conv2D(32, 64, 128, 256)` with `BatchNormalization`, `ReLU`, and `MaxPooling2D(2×2)`
   - Fully Connected layers: `Dense(512, Dropout=0.5)` $\rightarrow$ `Dense(256, Dropout=0.3)` $\rightarrow$ `Dense(12, Softmax)`
   - Total parameters: 26,215,372
+  - CPU training is slow (several minutes per epoch on Apple Silicon); it is
+    optional. The app automatically falls back to MobileNetV2 when the
+    checkpoint is absent.
 
 ### 3. Tabular Nutritional Regression ANN (`models/ann_model.py`)
 - Demonstrates tabular regression on structured data independently of image inputs:
@@ -100,22 +107,88 @@ Stored locally in `data/nutrition_database.json` and `data/nutrition.csv` for 10
 
 ---
 
+## 📈 Model Evaluation (Real Held-Out Photos)
+
+The production MobileNetV2 linear-probe model is evaluated on **562 real
+photographs** (47 per class) that were never used for training or validation:
+
+| Metric | Score |
+|---|---|
+| Top-1 accuracy | **91.1%** |
+| Top-3 accuracy | **98.6%** |
+| Macro precision | 0.913 |
+| Macro recall | 0.911 |
+| Macro F1 | 0.911 |
+
+Data split: **2,353 train / 470 validation / 562 test** images across 12 classes.
+The official dataset test splits are used (Food-101 `validation`, and the
+official test splits of the Indian/Fruits datasets).
+
+Full per-class report: [`results/mobilenet_classification_report.txt`](results/mobilenet_classification_report.txt)  
+Confusion matrix: [`results/mobilenet_confusion_matrix.png`](results/mobilenet_confusion_matrix.png)  
+Machine-readable metrics: [`results/mobilenet_metrics.json`](results/mobilenet_metrics.json)
+
+> **Note on the original scores:** the first version of this repo trained on
+> `make_synthetic_dataset()`, which generates random-noise images. On random
+> noise, 1-in-12 chance accuracy is ~8.3% — exactly what the checked-in
+> "~6%" metrics showed. Those models scored **8.0% on real photos**. The
+> synthetic path is now restricted to pipeline smoke tests, and the training
+> and evaluation defaults require real photographs.
+
+---
+
 ## 💻 Running the Application
 
-### Access Currently Running Instance
-The application is active and serving at:  
-👉 **http://localhost:8501**
+### 1. Install dependencies
+```bash
+python -m venv .venv
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+```
 
-### Relaunch Commands
-```powershell
-cd "c:\Users\HP\OneDrive - The Northcap university\Desktop\cs\food_calorie_estimator"
+### 2. Download real training data (one time, ~300 MB)
+The image classifiers are trained on real photographs assembled from public
+datasets (Food-101, Indian Foods, Indian Food Images, Fruits-360):
+```bash
+python training/download_dataset.py
+```
+This writes `data/food_images/{train,val,test}/<class>/` and twelve
+`assets/samples/*.jpg` quick-test photos.
+
+### 3. Train the models
+```bash
+# Primary model (frozen MobileNetV2 features + linear classifier)
+python training/train_mobilenet_linear.py
+
+# Optional comparison model (custom 4-block CNN; slow on CPU)
+python training/train_cnn.py --model cnn --dataset real --epochs 5
+
+# Tabular nutrition ANN
+python training/train_ann.py
+```
+
+`train_mobilenet_linear.py` caches the extracted 1280-D features in
+`data/features/`, so retraining the classifier takes seconds. Use
+`--force-features` after changing the image dataset.
+
+### 4. Evaluate on the held-out test split
+```bash
+python training/evaluate.py --model all --dataset real
+```
+
+### 5. Launch the app
+```bash
 streamlit run app.py
 ```
+The app opens at **http://localhost:8501**.
 
-### Run Model Evaluation
-```powershell
-python training/evaluate.py --model all
-```
+> **Why the checked-in metrics used to be ~6%:** the original `bootstrap_models.py`
+> trained on `make_synthetic_dataset()`, which generates random-noise images.
+> Random noise has no class signal, so 1-in-12 chance accuracy (~8.3%) is the
+> expected result. The evaluation script also defaulted to the same noise data.
+> Both defaults have been fixed; real photographs are now required, and
+> synthetic data is only available for pipeline smoke tests.
+
 
 ---
 

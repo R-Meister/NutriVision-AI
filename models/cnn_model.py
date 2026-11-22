@@ -63,6 +63,8 @@ def build_cnn(num_classes: int = config.NUM_CLASSES,
     x = layers.RandomFlip("horizontal", name="aug_flip")(inputs)
     x = layers.RandomRotation(config.AUG_ROTATION / 360.0, name="aug_rot")(x)
     x = layers.RandomZoom(config.AUG_ZOOM, name="aug_zoom")(x)
+    x = layers.RandomBrightness(0.12, name="aug_bright")(x)
+    x = layers.RandomContrast(0.12, name="aug_contrast")(x)
 
     # ── Conv Block 1: 32 filters ──────────────────────────────────────────
     x = layers.Conv2D(32, (3, 3), padding="same", name="conv1_1")(x)

@@ -62,10 +62,24 @@ def train_cnn_model(X_train, y_train, X_val, y_val,
 def train_mobilenet_model(X_train, y_train, X_val, y_val,
                            epochs: int = config.TL_EPOCHS,
                            fine_tune: bool = False,
-                           batch_size: int = config.BATCH_SIZE) -> dict:
+                           batch_size: int = config.BATCH_SIZE,
+                           model_path: str | None = None) -> dict:
+    """
+    Optional fine-tuned-head experiment.
+
+    This writes to ``mobilenet_finetuned.keras`` by default so it cannot
+    overwrite the production linear-probe checkpoint used by the app.
+    Use ``training/train_mobilenet_linear.py`` for the production model.
+    """
+    save_path = model_path or os.path.join(
+        config.SAVED_MODELS, "mobilenet_finetuned.keras"
+    )
     print("\n" + "=" * 60)
-    print("  Training MobileNetV2 Transfer Learning")
+    print("  Training MobileNetV2 Transfer Learning (fine-tuned head)")
     print("=" * 60)
+    print(f"  Output: {save_path}")
+    print("  NOTE: the production model is trained by")
+    print("        training/train_mobilenet_linear.py")
     model = build_mobilenet(freeze_base=True)
     compile_mobilenet(model)
     model.summary()
@@ -77,7 +91,7 @@ def train_mobilenet_model(X_train, y_train, X_val, y_val,
         validation_data=(X_val, y_val),
         epochs=epochs,
         batch_size=batch_size,
-        callbacks=tl_callbacks(),
+        callbacks=tl_callbacks(save_path),
         verbose=1,
     )
     print(f"\n✅ Phase-1 done. Best val_acc = {max(history.history['val_accuracy']):.4f}")
@@ -91,6 +105,7 @@ def train_mobilenet_model(X_train, y_train, X_val, y_val,
             validation_data=(X_val, y_val),
             epochs=config.FINE_TUNE_EPOCHS,
             batch_size=batch_size // 2,
+            callbacks=tl_callbacks(save_path),
             verbose=1,
         )
         # Merge histories
@@ -101,7 +116,7 @@ def train_mobilenet_model(X_train, y_train, X_val, y_val,
     elapsed = time.time() - t0
     print(f"\n✅ MobileNetV2 total time: {elapsed:.0f}s. "
           f"Best val_acc = {max(history.history['val_accuracy']):.4f}")
-    _save_history(history.history, "mobilenet")
+    _save_history(history.history, "mobilenet_finetuned")
     return history.history
 
 
@@ -110,8 +125,9 @@ def main():
     parser.add_argument("--model",       default="all",
                         choices=["cnn", "mobilenet", "all"])
     parser.add_argument("--dataset",     default="auto",
-                        choices=["auto", "food101", "synthetic"])
-    parser.add_argument("--n_per_class", type=int, default=100)
+                        choices=["auto", "real", "synthetic", "food101"])
+    parser.add_argument("--n_per_class", type=int, default=0,
+                        help="Cap images per class (0 = use the full real dataset)")
     parser.add_argument("--epochs",      type=int, default=None)
     parser.add_argument("--batch_size",  type=int, default=config.BATCH_SIZE)
     parser.add_argument("--fine_tune",   action="store_true")
@@ -119,9 +135,9 @@ def main():
 
     # Load data
     print(f"[train_cnn] Loading dataset: mode={args.dataset}, "
-          f"n_per_class={args.n_per_class}")
+          f"n_per_class={args.n_per_class or 'all'}")
     X_tr, y_tr, X_val, y_val, X_te, y_te = load_dataset(
-        args.dataset, args.n_per_class
+        args.dataset, args.n_per_class or None
     )
     print(f"Train={X_tr.shape[0]} | Val={X_val.shape[0]} | Test={X_te.shape[0]}")
 

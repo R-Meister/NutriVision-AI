@@ -280,7 +280,7 @@ def render_header():
         </div>
         <div style="display:flex; align-items:center; gap:16px;">
             <span style="background:#ECFDF5; color:#047857; padding:6px 14px; border-radius:20px; font-weight:700; font-size:0.85rem; border:1px solid #A7F3D0;">
-                🟢 504+ Food Classes Active
+                🟢 91% top-1 · 12 Food Classes
             </span>
         </div>
     </div>
@@ -308,15 +308,15 @@ def tab_analyzer():
     qc1, qc2, qc3, qc4, qc5 = st.columns(5)
     sample_choice = None
     with qc1:
-        if st.button("🍕 Pizza Margherita", use_container_width=True): sample_choice = "pizza"
+        if st.button("🍕 Pizza Margherita", width="stretch"): sample_choice = "pizza"
     with qc2:
-        if st.button("🍗 Chicken Biryani", use_container_width=True): sample_choice = "chicken_biryani"
+        if st.button("🍗 Chicken Biryani", width="stretch"): sample_choice = "chicken_biryani"
     with qc3:
-        if st.button("🫓 Masala Dosa", use_container_width=True): sample_choice = "masala_dosa"
+        if st.button("🫓 Masala Dosa", width="stretch"): sample_choice = "masala_dosa"
     with qc4:
-        if st.button("🍔 Classic Burger", use_container_width=True): sample_choice = "burger"
+        if st.button("🍔 Classic Burger", width="stretch"): sample_choice = "burger"
     with qc5:
-        if st.button("🥟 Crispy Samosa", use_container_width=True): sample_choice = "samosa"
+        if st.button("🥟 Crispy Samosa", width="stretch"): sample_choice = "samosa"
 
     st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
 
@@ -338,7 +338,10 @@ def tab_analyzer():
             if cam_file:
                 pil_image = Image.open(cam_file).convert("RGB")
 
-        # Fallback to quick sample image generator
+        # Fallback to quick sample image generator.  The selection is stored in
+        # session state so it survives Streamlit reruns (e.g. clicking Analyze).
+        if pil_image is None and sample_choice is None:
+            sample_choice = st.session_state.get("active_sample")
         if pil_image is None and sample_choice is not None:
             pil_image = _generate_sample_image(sample_choice)
             st.session_state["active_sample"] = sample_choice
@@ -348,10 +351,13 @@ def tab_analyzer():
     with col_options:
         st.markdown('<div class="nv-card">', unsafe_allow_html=True)
         st.markdown("### ⚙️ Analysis Settings")
+        model_options = ["MobileNetV2 (Transfer Learning)"]
+        if os.path.exists(config.CNN_MODEL_PATH):
+            model_options.append("Custom 4-Block CNN")
         model_choice = st.selectbox(
             "Deep Learning Model:",
-            ["MobileNetV2 (Transfer Learning)", "Custom 4-Block CNN"],
-            help="MobileNetV2 uses ImageNet features with fine-tuned food classification head."
+            model_options,
+            help="MobileNetV2 uses frozen ImageNet features with a linear food classifier."
         )
         prefer_model = "mobilenet" if "MobileNetV2" in model_choice else "cnn"
 
@@ -372,8 +378,8 @@ def tab_analyzer():
         with preview_col:
             st.markdown('<div class="nv-card">', unsafe_allow_html=True)
             st.markdown("#### 🖼️ Image Preview")
-            st.image(pil_image, use_column_width=True)
-            if st.button("🗑️ Remove / Clear Image", use_container_width=True):
+            st.image(pil_image, width="stretch")
+            if st.button("🗑️ Remove / Clear Image", width="stretch"):
                 st.session_state.pop("meal_analysis_result", None)
                 st.session_state.pop("active_sample", None)
                 st.rerun()
@@ -384,7 +390,7 @@ def tab_analyzer():
             st.markdown("#### 🚀 Ready for Deep Learning Analysis")
             st.write("Click below to run model forward pass, region segmentation, portion scaling, and macronutrient regression.")
 
-            analyze_btn = st.button("⚡ ANALYZE FOOD & CALCULATE CALORIES", type="primary", use_container_width=True)
+            analyze_btn = st.button("⚡ ANALYZE FOOD & CALCULATE CALORIES", type="primary", width="stretch")
 
             if analyze_btn or "meal_analysis_result" in st.session_state:
                 if analyze_btn:
@@ -418,7 +424,7 @@ def _render_analysis_results(res: dict):
         with col_ann:
             st.markdown('<div class="nv-card">', unsafe_allow_html=True)
             st.markdown("#### 🍱 Detected Food Regions")
-            st.image(res["annotated_image"], caption="OpenCV Region Segmentation", use_column_width=True)
+            st.image(res["annotated_image"], caption="OpenCV Region Segmentation", width="stretch")
             st.markdown('</div>', unsafe_allow_html=True)
         with col_summary:
             _render_total_calorie_banner(res)
@@ -513,7 +519,7 @@ def _render_analysis_results(res: dict):
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)"
         )
-        st.plotly_chart(fig_donut, use_container_width=True)
+        st.plotly_chart(fig_donut, width="stretch")
         st.markdown('</div>', unsafe_allow_html=True)
 
     with col_bar:
@@ -535,7 +541,7 @@ def _render_analysis_results(res: dict):
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)"
         )
-        st.plotly_chart(fig_bar, use_container_width=True)
+        st.plotly_chart(fig_bar, width="stretch")
         st.markdown('</div>', unsafe_allow_html=True)
 
     # ── Top-3 Predictions Detail ──────────────────────────────────────────────
@@ -559,7 +565,7 @@ def _render_analysis_results(res: dict):
     with col_save:
         st.write("")
         st.write("")
-        if st.button("✅ SAVE ANALYZED MEAL TO DAILY DIARY", type="primary", use_container_width=True):
+        if st.button("✅ SAVE ANALYZED MEAL TO DAILY DIARY", type="primary", width="stretch"):
             primary = updated_items[0]
             log_meal(
                 food_name=primary["food_name"],
@@ -642,7 +648,21 @@ def _render_total_calorie_banner(res: dict):
 
 
 def _generate_sample_image(food_key: str) -> Image.Image:
-    """Generate a high-quality stylized food illustration for instant testing."""
+    """Return a real sample photo for the quick-test buttons."""
+    sample_map = {
+        "pizza": "pizza",
+        "chicken_biryani": "biryani",
+        "masala_dosa": "dosa",
+        "burger": "burger",
+        "samosa": "samosa",
+    }
+    sample_path = os.path.join(
+        config.ASSETS_DIR, "samples", f"{sample_map.get(food_key, food_key)}.jpg"
+    )
+    if os.path.exists(sample_path):
+        return Image.open(sample_path).convert("RGB")
+
+    # Fallback illustration (used only if sample photos are absent).
     H, W = 300, 300
     img = np.ones((H, W, 3), dtype=np.uint8) * 245
 
@@ -833,7 +853,7 @@ def tab_diary():
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)"
     )
-    st.plotly_chart(fig_trend, use_container_width=True)
+    st.plotly_chart(fig_trend, width="stretch")
     st.markdown('</div>', unsafe_allow_html=True)
 
 
@@ -931,7 +951,7 @@ def tab_database():
         with st.expander("📊 View Complete Database Table"):
             df_full = load_nutrition_df()
             display_cols = ["display_name", "category", "calories_per_100g", "protein_per_100g", "carbs_per_100g", "fat_per_100g", "fiber_per_100g", "sugar_per_100g", "typical_portion_g"]
-            st.dataframe(df_full[display_cols], use_container_width=True, height=400)
+            st.dataframe(df_full[display_cols], width="stretch", height=400)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -943,8 +963,8 @@ def tab_performance():
     <div class="nv-hero">
         <h1>Deep Learning Model Evaluation & Metrics</h1>
         <p>
-            Real experimental evaluation metrics derived from model training runs.
-            Includes confusion matrices, classification reports, and training loss curves.
+            Real experimental evaluation metrics derived from the held-out real-photo
+            test split. Includes confusion matrices and full per-class reports.
         </p>
     </div>
     """, unsafe_allow_html=True)
@@ -978,7 +998,7 @@ def tab_performance():
             st.metric("Test Mean Absolute Error (MAE)", f"{am.get('test_mae', 9.06):.2f} kcal")
 
         if os.path.exists(ann_lc_path):
-            st.image(ann_lc_path, caption="ANN Training & Validation MAE Curves", use_column_width=True)
+            st.image(ann_lc_path, caption="ANN Training & Validation MAE Curves", width="stretch")
 
         st.markdown("""
         **ANN Role Explanation**:
@@ -994,7 +1014,7 @@ def tab_performance():
         st.markdown('<div class="nv-card">', unsafe_allow_html=True)
         st.markdown("### 📐 Architecture Comparison")
         comp_df = pd.DataFrame([
-            {"Model": "MobileNetV2 (Transfer Learning)", "Type": "Pretrained CNN", "Input": "224x224x3 Image", "Parameters": "2.26M Base + 200K Head", "Primary Advantage": "Depthwise separable convs, high efficiency on mobile/CPU"},
+            {"Model": "MobileNetV2 (Transfer Learning)", "Type": "Frozen CNN + linear probe", "Input": "224x224x3 Image", "Parameters": "2.26M Base + 15K Head", "Primary Advantage": "91.1% top-1 / 98.6% top-3 on held-out real photos; fast on CPU"},
             {"Model": "Custom FoodCNN", "Type": "4-Block ConvNet", "Input": "224x224x3 Image", "Parameters": "26.2M Parameters", "Primary Advantage": "Full domain-specific feature extraction, configurable kernels"},
             {"Model": "Nutritional ANN", "Type": "Dense MLP", "Input": "13 Numerical Features", "Parameters": "18.5K Parameters", "Primary Advantage": "Fast numerical nutrition regression, zero image overhead"}
         ])
@@ -1008,22 +1028,33 @@ def _render_model_results(model_prefix: str, model_title: str):
     lc_path = os.path.join(config.RESULTS_DIR, f"{model_prefix}_learning_curves.png")
     rep_path = os.path.join(config.RESULTS_DIR, f"{model_prefix}_classification_report.txt")
 
-    if os.path.exists(m_path):
-        with open(m_path) as f:
-            m = json.load(f)
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Test Accuracy", f"{m.get('accuracy', 0)*100:.2f}%")
-        c2.metric("Weighted Precision", f"{m.get('precision', 0)*100:.2f}%")
-        c3.metric("Weighted Recall", f"{m.get('recall', 0)*100:.2f}%")
-        c4.metric("Weighted F1-Score", f"{m.get('f1', 0)*100:.2f}%")
+    if not os.path.exists(m_path):
+        st.info(
+            f"No evaluation metrics found for {model_title}. "
+            "Train and evaluate this optional model first."
+        )
+        return
+
+    with open(m_path) as f:
+        m = json.load(f)
+
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Test Accuracy (Top-1)", f"{m.get('accuracy', 0) * 100:.2f}%")
+    c2.metric("Test Top-3 Accuracy", f"{m.get('top3_accuracy', 0) * 100:.2f}%")
+    c3.metric("Macro F1-Score", f"{m.get('f1', 0) * 100:.2f}%")
+    c4.metric("Held-out Test Images", f"{int(m.get('test_samples', 0))}")
+    st.caption(
+        f"Macro precision {m.get('precision', 0) * 100:.1f}% · "
+        f"macro recall {m.get('recall', 0) * 100:.1f}%"
+    )
 
     col_a, col_b = st.columns(2)
     if os.path.exists(lc_path):
         with col_a:
-            st.image(lc_path, caption=f"{model_title} Training & Validation Learning Curves", use_column_width=True)
+            st.image(lc_path, caption=f"{model_title} Training & Validation Learning Curves", width="stretch")
     if os.path.exists(cm_path):
         with col_b:
-            st.image(cm_path, caption=f"{model_title} Confusion Matrix", use_column_width=True)
+            st.image(cm_path, caption=f"{model_title} Confusion Matrix", width="stretch")
 
     if os.path.exists(rep_path):
         with st.expander("📄 View Full Classification Report"):
@@ -1058,7 +1089,7 @@ def tab_about():
     2. **Backpropagation**: Automatic differentiation with the Adam optimizer ($lr=0.001$) minimizing Categorical Cross-Entropy.
     3. **Activation Functions**: ReLU (Rectified Linear Unit) for hidden layers; Softmax for normalized multiclass probabilities.
     4. **Regularization**: Batch Normalization after convolutions and Dropout ($p=0.3 - 0.5$) preventing co-adaptation of neurons.
-    5. **Transfer Learning**: MobileNetV2 pre-trained on ImageNet with custom GlobalAveragePooling and dense classification head.
+    5. **Transfer Learning**: MobileNetV2 pre-trained on ImageNet; the production classifier uses frozen GlobalAveragePooling features plus a regularised linear probe (91.1% top-1, 98.6% top-3).
     6. **Data Augmentation**: In-model random horizontal flips, rotation ($\\pm 20^\\circ$), and zoom ($\\pm 20\\%$).
 
     ---

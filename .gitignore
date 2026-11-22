@@ -62,7 +62,15 @@ food_tracker.db
 # Regenerate anytime with: python training/train_cnn.py --model cnn
 saved_models/cnn_model.keras
 
+# Raw dataset downloads and the curated image splits (several GB)
+data/raw/
+data/food_images/
+data/features/
+
 # Logs & temp files
 *.log
 temp/
 tmp/
+
+# Playwright / browser test artefacts
+.playwright-mcp/

@@ -70,9 +70,19 @@ def predict_single_food(image_crop: np.ndarray,
     if prefer_model == "mobilenet":
         model = get_mobilenet_model()
         model_name = "MobileNetV2 (Transfer Learning)"
-    if model is None:
+    else:
         model = get_cnn_model()
         model_name = "Custom CNN"
+
+    # If the requested checkpoint is missing, fall back to the other model
+    # instead of silently switching to the colour heuristic.
+    if model is None:
+        if prefer_model == "mobilenet":
+            model = get_cnn_model()
+            model_name = "Custom CNN (fallback)"
+        else:
+            model = get_mobilenet_model()
+            model_name = "MobileNetV2 (fallback)"
 
     # Preprocess image crop to (1, 224, 224, 3)
     img = image_crop

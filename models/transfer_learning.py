@@ -66,6 +66,8 @@ def build_mobilenet(num_classes: int = config.NUM_CLASSES,
     x = layers.RandomFlip("horizontal", name="aug_flip")(x)
     x = layers.RandomRotation(config.AUG_ROTATION / 360.0, name="aug_rot")(x)
     x = layers.RandomZoom(config.AUG_ZOOM, name="aug_zoom")(x)
+    x = layers.RandomBrightness(0.12, name="aug_bright")(x)
+    x = layers.RandomContrast(0.12, name="aug_contrast")(x)
 
     # Backbone
     x = base_model(x, training=not freeze_base)
@@ -115,6 +117,11 @@ def enable_fine_tuning(model: Model,
     base_model.trainable = True
     for layer in base_model.layers[:fine_tune_at]:
         layer.trainable = False
+    # Keep BatchNorm statistics frozen while fine-tuning; updating them with
+    # small batches destabilises the pretrained features.
+    for layer in base_model.layers[fine_tune_at:]:
+        if isinstance(layer, layers.BatchNormalization):
+            layer.trainable = False
 
     n_trainable = sum(1 for l in base_model.layers if l.trainable)
     print(f"Fine-tuning: {n_trainable} trainable layers in backbone.")

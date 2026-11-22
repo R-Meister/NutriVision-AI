@@ -4,6 +4,7 @@ import os
 # ── Paths ────────────────────────────────────────────────────────────────────
 BASE_DIR        = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR        = os.path.join(BASE_DIR, "data")
+REAL_DATA_DIR   = os.path.join(DATA_DIR, "food_images")
 SAVED_MODELS    = os.path.join(BASE_DIR, "saved_models")
 RESULTS_DIR     = os.path.join(BASE_DIR, "results")
 ASSETS_DIR      = os.path.join(BASE_DIR, "assets")
