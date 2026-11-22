@@ -12,6 +12,7 @@ ASSETS_DIR      = os.path.join(BASE_DIR, "assets")
 CNN_MODEL_PATH  = os.path.join(SAVED_MODELS, "cnn_model.keras")
 TL_MODEL_PATH   = os.path.join(SAVED_MODELS, "mobilenet_model.keras")
 ANN_MODEL_PATH  = os.path.join(SAVED_MODELS, "ann_model.keras")
+OOD_CALIBRATION_PATH = os.path.join(SAVED_MODELS, "ood_calibration.npz")
 NUTRITION_CSV   = os.path.join(DATA_DIR, "nutrition.csv")
 DB_PATH         = os.path.join(BASE_DIR, "food_tracker.db")
 

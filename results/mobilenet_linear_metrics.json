@@ -4,6 +4,8 @@
   "val_accuracy": 0.8787234042553191,
   "test_accuracy": 0.9110320284697508,
   "top3_accuracy": 0.9857651245551602,
+  "ood_threshold": 0.57,
+  "ood_reference_features": 2353,
   "train_samples": 2353,
   "val_samples": 470,
   "test_samples": 562

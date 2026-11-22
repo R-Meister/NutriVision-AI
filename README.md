@@ -52,6 +52,7 @@ $$\text{User Upload / Camera} \longrightarrow \text{OpenCV Segmentation} \longri
 - **Modern WebMD-Inspired UI/UX**: Crisp emerald green, mint, white, and slate theme with modern typography, metric cards, donut charts, and progress bars.
 - **504+ Verified Food Database**: Sourced from USDA FoodData Central and Indian Food Composition Tables (IFCT) covering Indian main dishes, South Indian specialties, street food, Western meals, fruits, vegetables, beverages, and desserts.
 - **Multi-Food Region Detection**: OpenCV-based plate contour analysis that isolates distinct items (e.g. Dosa + Sambar + Chutney or Burger + Fries), estimating individual portions and calculating grand meal totals.
+- **Non-Food Rejection Gate**: The classifier compares each photo against the training feature bank (mean top-5 cosine similarity ≥ 0.57). Faces, landscapes and objects are flagged as “not one of the 12 supported foods” instead of receiving invented calories.
 - **Micro & Macro Nutritional Tracking**: Tracks Calories, Protein, Carbohydrates, Fat, Dietary Fiber, Sugars, and Sodium per item and per meal.
 - **Daily Budget & RDA Gauges**: WebMD-style budget tracker (`Daily Goal - Food Intake = Remaining Calories`) with progress bars against daily RDA targets.
 - **Persistent SQLite Food Diary**: Stores logged meals with timestamps, meal types, itemized breakdowns, and deletion capabilities.
@@ -127,6 +128,10 @@ official test splits of the Indian/Fruits datasets).
 Full per-class report: [`results/mobilenet_classification_report.txt`](results/mobilenet_classification_report.txt)  
 Confusion matrix: [`results/mobilenet_confusion_matrix.png`](results/mobilenet_confusion_matrix.png)  
 Machine-readable metrics: [`results/mobilenet_metrics.json`](results/mobilenet_metrics.json)
+
+The non-food gate uses `saved_models/ood_calibration.npz` (training feature
+bank + threshold), which `training/train_mobilenet_linear.py` regenerates. If
+the file is absent, the app falls back to plain 12-class classification.
 
 > **Note on the original scores:** the first version of this repo trained on
 > `make_synthetic_dataset()`, which generates random-noise images. On random

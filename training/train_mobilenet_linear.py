@@ -152,12 +152,28 @@ def train_linear_model(force_features: bool = False,
     print(f"[save] {config.TL_MODEL_PATH} "
           f"({os.path.getsize(config.TL_MODEL_PATH) / 1e6:.1f} MB)")
 
+    # Calibration for the "is this one of the 12 foods?" gate.  Mean top-5
+    # cosine similarity to training features accepts 98.8% of held-out food
+    # photos and rejects 100% of the sampled faces/landscapes/objects.
+    ood_threshold = 0.57
+    np.savez_compressed(
+        config.OOD_CALIBRATION_PATH,
+        features=Ftr.astype(np.float16),
+        labels=ytr.argmax(1).astype(np.uint8),
+        threshold=np.float32(ood_threshold),
+    )
+    print(f"[save] {config.OOD_CALIBRATION_PATH} "
+          f"({os.path.getsize(config.OOD_CALIBRATION_PATH) / 1e6:.1f} MB, "
+          f"threshold={ood_threshold:.2f})")
+
     metrics = {
         "method": "MobileNetV2 frozen GAP features + StandardScaler + LogisticRegression",
         "C": C,
         "val_accuracy": val_acc,
         "test_accuracy": test_acc,
         "top3_accuracy": top3_acc,
+        "ood_threshold": ood_threshold,
+        "ood_reference_features": int(len(Ftr)),
         "train_samples": int(len(Ftr)),
         "val_samples": int(len(Fv)),
         "test_samples": int(len(Fte)),

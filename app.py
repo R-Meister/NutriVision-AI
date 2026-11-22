@@ -415,8 +415,46 @@ def _render_analysis_results(res: dict):
     st.markdown("---")
     st.markdown("## 📊 Nutritional Analysis Results")
 
-    items = res["items"]
+    all_items = res["items"]
+    supported_items = res.get("supported_items", all_items)
+    rejected_items = res.get("rejected_items", [])
     is_multi = res["is_multi_food"]
+
+    # A 12-class model always returns a food label; reject unrelated photos
+    # (faces, landscapes, objects) instead of inventing calories for them.
+    if not supported_items:
+        st.error(
+            "This photo doesn't look like one of the 12 supported foods, so no "
+            "calories were estimated. Try a clear, close-up meal photo."
+        )
+        if res.get("annotated_image") is not None:
+            st.image(res["annotated_image"], caption="Image checked (no food match)",
+                     width="stretch")
+        if rejected_items:
+            best = max(
+                rejected_items,
+                key=lambda it: it.get("match_score") or 0.0,
+            )
+            st.caption(
+                f"Closest model guess: **{best['display_name']}** "
+                f"({best['confidence_pct']}% confidence, match "
+                f"{best.get('match_score')} / needs {best.get('ood_threshold')})."
+            )
+        st.info(
+            "Supported foods: " + ", ".join(
+                c.replace("_", " ").title() for c in config.FOOD_CLASSES
+            )
+        )
+        return
+
+    if rejected_items:
+        st.warning(
+            f"{len(rejected_items)} region(s) did not match a supported food "
+            "and were ignored in the nutrition totals."
+        )
+
+    items = supported_items
+    is_multi = len(items) > 1
 
     # If multi-food, show annotated image
     if is_multi and "annotated_image" in res:

@@ -86,6 +86,21 @@ Same formula for protein, carbs, fat:
   Nutrient_g = (portion_g / 100) × nutrient_per_100g"""
     },
     {
+        "q": "What happens if I upload a photo that is not food?",
+        "a": """A 12-class softmax always returns one of its 12 labels, even for a face
+or a landscape. To prevent fake calories, the app adds an out-of-distribution
+(OOD) gate:
+
+  • Extract the 1280-D MobileNetV2 GAP feature for the uploaded image.
+  • Compare it with the 2,353 training-image feature bank.
+  • Compute the mean cosine similarity of the top-5 nearest training photos.
+  • If the score is below 0.57, report "not one of the 12 supported foods"
+    and show no calorie estimate.
+
+Calibration results: 50/50 sampled non-food images (faces, landscapes,
+objects) were rejected, while 98.8% of held-out food photos were accepted."""
+    },
+    {
         "q": "What dataset did you use?",
         "a": """Real photographs assembled from four public datasets:
   • Food-101 (7 classes): pizza, burger, french fries, samosa,
