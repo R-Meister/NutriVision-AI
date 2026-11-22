@@ -1,0 +1,14 @@
+# Keep Windows launchers usable regardless of the user's Git settings.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.sh text eol=lf
+
+# Binary model / data artefacts
+*.keras binary
+*.npz binary
+*.h5 binary
+*.jpg binary
+*.jpeg binary
+*.png binary
+*.gif binary
+*.webp binary

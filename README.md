@@ -144,23 +144,39 @@ the file is absent, the app falls back to plain 12-class classification.
 
 ## 💻 Running the Application
 
-### 1. Install dependencies
+### Windows (recommended)
+Double-click **`launch.bat`**, or follow the step-by-step
+**[Windows setup guide](WINDOWS.md)**. The trained MobileNetV2 classifier,
+non-food calibration, ANN, sample photos, and nutrition database are included
+in the repository, so **you do not need the image dataset just to run the app**.
+
+### macOS / Linux
+
+#### 1. Install dependencies
 ```bash
 python -m venv .venv
-source .venv/bin/activate        # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
+source .venv/bin/activate
+python -m pip install -r requirements.txt
 ```
 
-### 2. Download real training data (one time, ~600 MB)
+On Windows manually:
+```bat
+py -3.11 -m venv .venv
+.venv\Scripts\activate
+python -m pip install -r requirements.txt
+```
+
+#### 2. Download real training data — **only for retraining** (one time, ~600 MB)
 The image classifiers are trained on real photographs assembled from public
 datasets (Food-101, Indian Foods, Indian Food Images, Fruits-360):
 ```bash
 python training/download_dataset.py
 ```
 This writes `data/food_images/{train,val,test}/<class>/` and twelve
-`assets/samples/*.jpg` quick-test photos.
+`assets/samples/*.jpg` quick-test photos. Skip this step if you only want to
+run the app.
 
-### 3. Train the models
+#### 3. Train the models — **only for retraining**
 ```bash
 # Primary model (frozen MobileNetV2 features + linear classifier)
 python training/train_mobilenet_linear.py
@@ -176,14 +192,14 @@ python training/train_ann.py
 `data/features/`, so retraining the classifier takes seconds. Use
 `--force-features` after changing the image dataset.
 
-### 4. Evaluate on the held-out test split
+#### 4. Evaluate on the held-out test split
 ```bash
 python training/evaluate.py --model all --dataset real
 ```
 
-### 5. Launch the app
+#### 5. Launch the app
 ```bash
-streamlit run app.py
+python -m streamlit run app.py
 ```
 The app opens at **http://localhost:8501**.
 

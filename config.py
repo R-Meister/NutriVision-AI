@@ -1,5 +1,14 @@
 # config.py — Central configuration for Food Calorie Estimator
 import os
+import sys
+
+# Windows consoles can default to cp1252; make Unicode log output safe.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        if _stream is not None:
+            _stream.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
 
 # ── Paths ────────────────────────────────────────────────────────────────────
 BASE_DIR        = os.path.dirname(os.path.abspath(__file__))

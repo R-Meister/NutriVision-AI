@@ -1,0 +1,45 @@
+name: Windows smoke test
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: Import the full stack
+        run: |
+          python -c "import tensorflow as tf, streamlit, cv2, numpy, pandas, sklearn, pyarrow, PIL, plotly, matplotlib; print('stack ok')"
+          python -c "import tensorflow as tf; print('tensorflow', tf.__version__)"
+
+      - name: Load the production classifier
+        run: |
+          python -c "import tensorflow as tf; m = tf.keras.models.load_model('saved_models/mobilenet_model.keras'); print('model', m.input_shape, '->', m.output_shape)"
+
+      - name: Import the app modules
+        run: |
+          python -c "import app; print('app imports ok')"
+
+      - name: Verify launcher exists
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "launch.bat")) { throw "launch.bat is missing" }
+          $text = Get-Content "launch.bat" -Raw
+          if ($text -notmatch "streamlit run app.py") { throw "launch.bat does not start the app" }
+          Write-Host "launcher ok"
