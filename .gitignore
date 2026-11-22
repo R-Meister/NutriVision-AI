@@ -1,0 +1,68 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Environment Variables & Secrets
+*.env
+*.env.local
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
+*/.ipynb_checkpoints/*
+
+# IDE & Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# SQLite local diary database (keep clean on clone; created automatically upon launch)
+*.db-journal
+food_tracker.db
+
+# Large Model Files (> 100MB exceeds GitHub hard limit)
+# Note: mobilenet_model.keras (~14MB) and ann_model.keras (~0.26MB) are included.
+# cnn_model.keras (~300MB) is excluded from Git to comply with GitHub's 100MB limit.
+# Regenerate anytime with: python training/train_cnn.py --model cnn
+saved_models/cnn_model.keras
+
+# Logs & temp files
+*.log
+temp/
+tmp/
